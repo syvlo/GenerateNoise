@@ -8,6 +8,9 @@
 #include <cv.h>
 #include <highgui.h>
 
+#include <stdio.h>
+
+#define NB_BINS (200)
 
 void
 printHelp()
@@ -25,28 +28,64 @@ checkDistrib(const cv::Mat noise)
     unsigned height = noise.size().height;
     double nbPix = width * height;
 
+
+    //Retrieve mean, min and max.
+    double max = 0;
+    double min = 0;
+
     double mean = 0;
 
     for (unsigned i = 0; i < height; ++i)
 	for (unsigned j = 0; j < width; ++j)
 	{
 	    mean += noise.at<double>(i, j);
+	    if (noise.at<double>(i, j) > max)
+		max = noise.at<double>(i, j);
+	    if (noise.at<double>(i, j) < min)
+		min = noise.at<double>(i, j);
 	}
     mean /= nbPix;
 
     std::cout << "Mean = " << mean << std::endl;
 
+    //Retrieve stddev and fill bins.
     double std = 0;
+    std::vector<unsigned> bins (NB_BINS, 0);
+    double interval = (max - min) / NB_BINS;
+
     for (unsigned i = 0; i < height; ++i)
 	for (unsigned j = 0; j < width; ++j)
 	{
 	    std += (noise.at<double>(i, j) - mean) * (noise.at<double>(i, j) - mean);
+	    ++bins[(noise.at<double>(i, j) - min) / interval];
 	}
     std /= nbPix;
     std = sqrt(std);
 
     std::cout << "Standart deviation = " << std << std::endl;
     std::cout << "Coefficient of variation = " << std / mean << std::endl;
+
+    unsigned maxBin = 0;
+    for (unsigned i = 0; i < NB_BINS; ++i)
+	if (bins[i] > maxBin)
+	    maxBin = bins[i];
+
+    cv::Mat histImage (maxBin + 10, NB_BINS, CV_8UC3, cv::Scalar(0, 0, 0));
+
+    for (unsigned i = 0; i < NB_BINS - 1; ++i)
+	cv::line(histImage, cv::Point(i, maxBin - bins[i]), cv::Point(i + 1, maxBin - bins[i + 1]), cv::Scalar(0, 0, 255));
+
+    char buffer[10];
+    sprintf(buffer,"%d",(int)mean);
+    cv::putText(histImage, std::string(buffer), cv::Point((mean  - min) / interval, maxBin + 7), 0, 0.3, cv::Scalar(255, 0, 0));
+
+    sprintf(buffer,"%d",(int)min);
+    cv::putText(histImage, std::string(buffer), cv::Point(1, maxBin + 7), 0, 0.3, cv::Scalar(255, 0, 0));
+
+    sprintf(buffer,"%d",(int)max);
+    cv::putText(histImage, std::string(buffer), cv::Point((max - 10  - min) / interval, maxBin + 7), 0, 0.3, cv::Scalar(255, 0, 0));
+
+    cv::imwrite("hist.png", histImage);
 }
 
 cv::Mat
