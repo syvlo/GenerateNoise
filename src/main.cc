@@ -22,7 +22,7 @@ printHelp()
 }
 
 void
-checkDistrib(const cv::Mat noise)
+checkDistrib(const cv::Mat noise, unsigned minIm, unsigned maxIm, bool additive)
 {
     unsigned width = noise.size().width;
     unsigned height = noise.size().height;
@@ -31,7 +31,7 @@ checkDistrib(const cv::Mat noise)
 
     //Retrieve mean, min and max.
     double max = 0;
-    double min = 0;
+    double min = 4242;
 
     double mean = 0;
 
@@ -64,6 +64,11 @@ checkDistrib(const cv::Mat noise)
 
     std::cout << "Standart deviation = " << std << std::endl;
     std::cout << "Coefficient of variation = " << std / mean << std::endl;
+
+    if ((additive && minIm + min < 0) || (!additive && minIm * min < 0))
+	std::cout << "Warning: some values could be < 0." << std::endl;
+    if ((additive && maxIm + max > 255) || (!additive && maxIm * max > 255))
+	std::cout << "Warning: some values could be > 255." << std::endl;
 
     unsigned maxBin = 0;
     for (unsigned i = 0; i < NB_BINS; ++i)
@@ -103,19 +108,29 @@ gaussian(double stddev, const cv::Mat input, bool check)
     unsigned height = input.size().height;
 
     cv::Mat output(input.size(), CV_8U);
+
     cv::Mat noise(input.size(), CV_32F);
+    unsigned min = 4242;
+    unsigned max = 0;
+
     for (unsigned i = 0; i < height; ++i)
 	for (unsigned j = 0; j < width; ++j)
 	{
 	    double noiseValue = distribution(generator);
 	    if (check)
+	    {
 		noise.at<double>(i, j) = noiseValue;
+		if (min > input.at<unsigned char>(i, j))
+		    min = input.at<unsigned char>(i, j);
+		if (max < input.at<unsigned char>(i, j))
+		    max = input.at<unsigned char>(i, j);
+	    }
 	    double value = input.at<unsigned char>(i, j) + noiseValue;
 	    output.at<unsigned char>(i, j) = ((value > 255 ? 255 : value) < 0 ? 0 : value);
 	}
 
     if (check)
-	checkDistrib(noise);
+	checkDistrib(noise, min, max, true);
 
     return output;
 }
@@ -131,19 +146,29 @@ rayleigh(double sigma, const cv::Mat input, bool check)
     unsigned height = input.size().height;
 
     cv::Mat output(input.size(), CV_8U);
+
     cv::Mat noise(input.size(), CV_32F);
+    unsigned min = 4242;
+    unsigned max = 0;
+
     for (unsigned i = 0; i < height; ++i)
 	for (unsigned j = 0; j < width; ++j)
 	{
 	    double noiseValue = sigma * sqrt(-2 * log(distribution(generator)));
 	    if (check)
+	    {
 		noise.at<double>(i, j) = noiseValue;
+		if (min > input.at<unsigned char>(i, j))
+		    min = input.at<unsigned char>(i, j);
+		if (max < input.at<unsigned char>(i, j))
+		    max = input.at<unsigned char>(i, j);
+	    }
 	    double value = (double)input.at<unsigned char>(i, j) * noiseValue;
 	    output.at<unsigned char>(i, j) = ((value > 255 ? 255 : value) < 0 ? 0 : value);
 	}
 
     if (check)
-	checkDistrib(noise);
+	checkDistrib(noise, min, max, false);
 
     return output;
 }
