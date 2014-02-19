@@ -11,7 +11,7 @@
 #include <stdio.h>
 
 #define NB_BINS (200)
-
+#define HEIGHT (300)
 void
 printHelp()
 {
@@ -70,20 +70,23 @@ checkDistrib(const cv::Mat noise)
 	if (bins[i] > maxBin)
 	    maxBin = bins[i];
 
-    cv::Mat histImage (maxBin + 10, NB_BINS, CV_8UC3, cv::Scalar(0, 0, 0));
+    cv::Mat histImage (HEIGHT + 10, NB_BINS, CV_8UC3, cv::Scalar(255, 255, 255));
 
     for (unsigned i = 0; i < NB_BINS - 1; ++i)
-	cv::line(histImage, cv::Point(i, maxBin - bins[i]), cv::Point(i + 1, maxBin - bins[i + 1]), cv::Scalar(0, 0, 255));
+	cv::line(histImage, cv::Point(i, HEIGHT - bins[i] * HEIGHT / maxBin), cv::Point(i + 1, HEIGHT - bins[i + 1] * HEIGHT / maxBin), cv::Scalar(0, 0, 0));
 
     char buffer[10];
     sprintf(buffer,"%d",(int)mean);
-    cv::putText(histImage, std::string(buffer), cv::Point((mean  - min) / interval, maxBin + 7), 0, 0.3, cv::Scalar(255, 0, 0));
+    cv::putText(histImage, std::string(buffer), cv::Point((mean  - min) / interval, HEIGHT + 7), 0, 0.3, cv::Scalar(255, 0, 0));
 
     sprintf(buffer,"%d",(int)min);
-    cv::putText(histImage, std::string(buffer), cv::Point(1, maxBin + 7), 0, 0.3, cv::Scalar(255, 0, 0));
+    cv::putText(histImage, std::string(buffer), cv::Point(1, HEIGHT + 7), 0, 0.3, cv::Scalar(255, 0, 0));
 
     sprintf(buffer,"%d",(int)max);
-    cv::putText(histImage, std::string(buffer), cv::Point((max - 10  - min) / interval, maxBin + 7), 0, 0.3, cv::Scalar(255, 0, 0));
+    cv::putText(histImage, std::string(buffer), cv::Point((max - min) / interval - 20, HEIGHT + 7), 0, 0.3, cv::Scalar(255, 0, 0));
+
+    sprintf(buffer,"%d",(int)maxBin);
+    cv::putText(histImage, std::string(buffer), cv::Point(1, 10), 0, 0.3, cv::Scalar(255, 0, 0), 1, 8, false);
 
     cv::imwrite("hist.png", histImage);
 }
