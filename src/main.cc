@@ -17,8 +17,8 @@ printHelp()
 {
     std::cout << "Generate noise on images." << std::endl
 	      << "Usage:" << std::endl
-	      << "./GenerateNoise gaussian stddev input output" << std::endl
-	      << "./GenerateNoise rayleigh stddev input output" << std::endl;
+	      << "./GenerateNoise gaussian stddev input output [-check]" << std::endl
+	      << "./GenerateNoise rayleigh stddev input output [-check]" << std::endl;
 }
 
 void
@@ -155,28 +155,34 @@ int main (int argc, char* argv[])
 
     else if (!strcmp(argv[1], "gaussian"))
     { //Add gaussian noise
-	if (argc != 5)//Wrong number of arguments.
+	if (argc < 5)//Wrong number of arguments.
 	{
 	    printHelp();
 	    return (1);
 	}
 	double stddev = atof(argv[2]);
 	cv::Mat input = cv::imread(argv[3], CV_LOAD_IMAGE_GRAYSCALE);
-	cv::Mat output = gaussian(stddev, input, true);
+	bool check = false;
+	if (argc > 5 && !strcmp(argv[5], "-check"))
+	    check = true;
+	cv::Mat output = gaussian(stddev, input, check);
 	cv::imwrite(argv[4], output);
 	return (0);
     }
 
     else if (!strcmp(argv[1], "rayleigh"))
     { //Add gaussian noise
-	if (argc != 5)//Wrong number of arguments.
+	if (argc < 5)//Wrong number of arguments.
 	{
 	    printHelp();
 	    return (1);
 	}
 	double stddev = atof(argv[2]);
 	cv::Mat input = cv::imread(argv[3], CV_LOAD_IMAGE_GRAYSCALE);
-	cv::Mat output = rayleigh(stddev, input, true);
+	bool check = false;
+	if (argc > 5 && !strcmp(argv[5], "-check"))
+	    check = true;
+	cv::Mat output = rayleigh(stddev, input, check);
 	cv::imwrite(argv[4], output);
 	return (0);
     }
