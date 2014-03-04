@@ -102,7 +102,6 @@ gaussian(float stddev, const cv::Mat input, bool check)
 {
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
     std::default_random_engine generator (seed);
-
     std::normal_distribution<float> distribution (0.0,stddev);
 
     unsigned width = input.size().width;
@@ -179,7 +178,7 @@ nakagami(int L, const cv::Mat input, bool check)
 {
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
     std::default_random_engine generator (seed);
-    std::uniform_real_distribution<float> distribution(0.0,1.0);
+    std::normal_distribution<float> distribution (0.0,1.0);
 
     unsigned width = input.size().width;
     unsigned height = input.size().height;
