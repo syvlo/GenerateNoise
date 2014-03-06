@@ -126,7 +126,15 @@ gaussian(float stddev, const cv::Mat input, bool check)
 		    max = input.at<unsigned char>(i, j);
 	    }
 	    float value = input.at<unsigned char>(i, j) + noiseValue;
-	    output.at<unsigned char>(i, j) = ((value > 255 ? 255 : value) < 0 ? 0 : value);
+	    unsigned char truncated;
+	    if (value < 0)
+		truncated = 0;
+	    else
+		if (value > 255)
+		    truncated = 255;
+		else
+		    truncated = value;
+	    output.at<unsigned char>(i, j) = truncated;
 	}
 
     if (check)
