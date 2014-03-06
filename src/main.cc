@@ -209,7 +209,7 @@ nakagami(int L, const cv::Mat input, bool check)
     for (unsigned i = 0; i < height; ++i)
 	for (unsigned j = 0; j < width; ++j)
 	{
-	    noise.at<float> (i, j) = noise.at<float> (i, j) / L;
+	    noise.at<float> (i, j) = sqrt(noise.at<float> (i, j) / L);
 	    if (check)
 	    {
 		if (min > input.at<unsigned char>(i, j))
