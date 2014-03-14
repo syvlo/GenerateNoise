@@ -10,6 +10,8 @@
 
 #include <stdio.h>
 
+#include "ImwHelper.hh"
+
 #define NB_BINS (200)
 #define HEIGHT (300)
 void
@@ -17,9 +19,9 @@ printHelp()
 {
     std::cout << "Generate noise on images." << std::endl
 	      << "Usage:" << std::endl
-	      << "./GenerateNoise gaussian stddev input output [-check]" << std::endl
-	      << "./GenerateNoise rayleigh stddev input output [-check]" << std::endl
-	      << "./GenerateNoise nakagami L input output [-check]" << std::endl;
+	      << "./GenerateNoise [-radar] gaussian stddev input output [-check]" << std::endl
+	      << "./GenerateNoise [-radar] rayleigh stddev input output [-check]" << std::endl
+	      << "./GenerateNoise [-radar] nakagami L input output [-check]" << std::endl;
 }
 
 void
@@ -68,8 +70,11 @@ checkDistrib(const cv::Mat noise, unsigned minIm, unsigned maxIm, bool additive)
 
     if ((additive && minIm + min < 0) || (!additive && minIm * min < 0))
 	std::cout << "Warning: some values could be < 0." << std::endl;
-    if ((additive && maxIm + max > 255) || (!additive && maxIm * max > 255))
-	std::cout << "Warning: some values could be > 255." << std::endl;
+    if (maxIm > 0)//in radar mode, maxIm == 0 
+    {
+	if ((additive && maxIm + max > 255) || (!additive && maxIm * max > 255))
+	    std::cout << "Warning: some values could be > 255." << std::endl;
+    }
 
     unsigned maxBin = 0;
     for (unsigned i = 0; i < NB_BINS; ++i)
@@ -107,10 +112,10 @@ gaussian(float stddev, const cv::Mat input, bool check)
     unsigned width = input.size().width;
     unsigned height = input.size().height;
 
-    cv::Mat output(input.size(), CV_8U);
+    cv::Mat output(input.size(), input.type());
 
     cv::Mat noise(input.size(), CV_32F);
-    unsigned min = 4242;
+    unsigned min = 42424242;
     unsigned max = 0;
 
     for (unsigned i = 0; i < height; ++i)
@@ -120,21 +125,45 @@ gaussian(float stddev, const cv::Mat input, bool check)
 	    if (check)
 	    {
 		noise.at<float>(i, j) = noiseValue;
-		if (min > input.at<unsigned char>(i, j))
-		    min = input.at<unsigned char>(i, j);
-		if (max < input.at<unsigned char>(i, j))
-		    max = input.at<unsigned char>(i, j);
+		if (input.type() == CV_8U)
+		{
+		    if (min > input.at<unsigned char>(i, j))
+			min = input.at<unsigned char>(i, j);
+		    if (max < input.at<unsigned char>(i, j))
+			max = input.at<unsigned char>(i, j);
+		}
+		else
+		{
+		    if (min > input.at<unsigned short>(i, j))
+			min = input.at<unsigned short>(i, j);
+		}
 	    }
-	    float value = input.at<unsigned char>(i, j) + noiseValue;
-	    unsigned char truncated;
-	    if (value < 0)
-		truncated = 0;
+	    float value;
+	    if (input.type() == CV_8U)
+		value = input.at<unsigned char>(i, j) + noiseValue;
 	    else
-		if (value > 255)
-		    truncated = 255;
+		value = input.at<unsigned short>(i, j) + noiseValue;
+	    if (input.type() == CV_8U)
+	    {
+		unsigned char truncated;
+		if (value < 0)
+		    truncated = 0;
+		else
+		    if (value > 255)
+			truncated = 255;
+		    else
+			truncated = value;
+		output.at<unsigned char>(i, j) = truncated;
+	    }
+	    else
+	    {
+		unsigned short truncated;
+		if (value < 0)
+		    truncated = 0;
 		else
 		    truncated = value;
-	    output.at<unsigned char>(i, j) = truncated;
+		output.at<unsigned short>(i, j) = truncated;
+	    }
 	}
 
     if (check)
@@ -235,6 +264,42 @@ nakagami(int L, const cv::Mat input, bool check)
     return output;
 }
 
+cv::Mat
+parseArgs (int argc, char* argv[], bool& check, bool& radar, int& outputArgc, float& param)
+{
+    //Wrong number of arguments.
+    if (argc < 5)
+    {
+	printHelp();
+	exit (1);
+    }
+
+    //Check radar mode
+    if (argc > 2 && !strcmp(argv[2], "-radar"))
+	radar = true;
+    else
+	radar = false;
+
+    cv::Mat input;
+    if (radar)
+    {
+	param = atof(argv[3]);
+	input = ReadImw(argv[4]);
+	outputArgc = 5;
+    }
+    else
+    {
+	param = atof(argv[2]);
+	input = cv::imread(argv[3], CV_LOAD_IMAGE_GRAYSCALE);
+	outputArgc= 4;
+    }
+
+    if (argc > outputArgc + 1 && !strcmp(argv[outputArgc + 1], "-check"))
+	check = true;
+
+    return (input);
+}
+
 int main (int argc, char* argv[])
 {
     if (argc <= 1)
@@ -245,19 +310,18 @@ int main (int argc, char* argv[])
 
     else if (!strcmp(argv[1], "gaussian"))
     { //Add gaussian noise
-	if (argc < 5)//Wrong number of arguments.
-	{
-	    printHelp();
-	    return (1);
-	}
-	float stddev = atof(argv[2]);
-	cv::Mat input = cv::imread(argv[3], CV_LOAD_IMAGE_GRAYSCALE);
-	bool check = false;
-	if (argc > 5 && !strcmp(argv[5], "-check"))
-	    check = true;
+	float stddev;
+	bool check;
+	bool radar;
+	int outputArgc;
+
+	cv::Mat input = parseArgs(argc, argv, check, radar, outputArgc, stddev);
+
 	cv::Mat output = gaussian(stddev, input, check);
-	cv::imwrite(argv[4], output);
-	return (0);
+	if (radar)
+	    WriteImw(output, argv[outputArgc]);
+	else
+	    cv::imwrite(argv[outputArgc], output);
     }
 
     else if (!strcmp(argv[1], "rayleigh"))
@@ -274,7 +338,6 @@ int main (int argc, char* argv[])
 	    check = true;
 	cv::Mat output = rayleigh(stddev, input, check);
 	cv::imwrite(argv[4], output);
-	return (0);
     }
 
     else if (!strcmp(argv[1], "nakagami"))
@@ -296,7 +359,6 @@ int main (int argc, char* argv[])
 	    check = true;
 	cv::Mat output = nakagami(L, input, check);
 	cv::imwrite(argv[4], output);
-	return (0);
     }
 
     else
@@ -304,4 +366,6 @@ int main (int argc, char* argv[])
 	printHelp();
 	return (1);
     }
+
+    return (0);
 }

@@ -10,6 +10,7 @@ find_package( OpenCV REQUIRED )
 
 add_executable(${BIN_DIR}/GenerateNoise
   ${SRC_DIR}/main.cc
+  ${SRC_DIR}/ImwHelper.cc
 )
 
 target_link_libraries (${BIN_DIR}/GenerateNoise
