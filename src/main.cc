@@ -252,10 +252,10 @@ nakagami(int L, const cv::Mat input, bool check)
     unsigned width = input.size().width;
     unsigned height = input.size().height;
 
-    cv::Mat output(input.size(), CV_8U);
+    cv::Mat output(input.size(), input.type());
 
     cv::Mat noise = cv::Mat::zeros(input.size(), CV_32F);
-    unsigned min = 4242;
+    unsigned min = 42424242;
     unsigned max = 0;
 
     for (unsigned k = 0; k < L; ++k)
@@ -273,21 +273,45 @@ nakagami(int L, const cv::Mat input, bool check)
 	    noise.at<float> (i, j) = sqrt(noise.at<float> (i, j) / L);
 	    if (check)
 	    {
-		if (min > input.at<unsigned char>(i, j))
-		    min = input.at<unsigned char>(i, j);
-		if (max < input.at<unsigned char>(i, j))
-		    max = input.at<unsigned char>(i, j);
+		if (input.type() == CV_8U)
+		{
+		    if (min > input.at<unsigned char>(i, j))
+			min = input.at<unsigned char>(i, j);
+		    if (max < input.at<unsigned char>(i, j))
+			max = input.at<unsigned char>(i, j);
+		}
+		else
+		{
+		if (min > input.at<unsigned short>(i, j))
+		    min = input.at<unsigned short>(i, j);
+		}
 	    }
-	    float value = (float)input.at<unsigned char>(i, j) * noise.at<float>(i, j);
-	    unsigned char truncated;
-	    if (value < 0)
-		truncated = 0;
+	    float value;
+	    if (input.type() == CV_8U)
+		value = (float)input.at<unsigned char>(i, j) * noise.at<float> (i, j);
 	    else
-		if (value > 255)
-		    truncated = 255;
+		value = (float)input.at<unsigned short>(i, j) * noise.at<float> (i, j);
+	    if (input.type() == CV_8U)
+	    {
+		unsigned char truncated;
+		if (value < 0)
+		    truncated = 0;
+		else
+		    if (value > 255)
+			truncated = 255;
+		    else
+			truncated = value;
+		output.at<unsigned char>(i, j) = truncated;
+	    }
+	    else
+	    {
+		unsigned short truncated;
+		if (value < 0)
+		    truncated = 0;
 		else
 		    truncated = value;
-	    output.at<unsigned char>(i, j) = truncated;
+		output.at<unsigned short>(i, j) = truncated;
+	    }
 	}
 
     if (check)
@@ -374,23 +398,18 @@ int main (int argc, char* argv[])
 
     else if (!strcmp(argv[1], "nakagami"))
     { //Add nakagami noise
-	if (argc < 5)//Wrong number of arguments.
-	{
-	    printHelp();
-	    return (1);
-	}
-	int L = atoi(argv[2]);
-	if (L < 0)
-	{
-	    std::cerr << "L must be a positive integer" << std::endl;
-	    return (1);
-	}
-	cv::Mat input = cv::imread(argv[3], CV_LOAD_IMAGE_GRAYSCALE);
-	bool check = false;
-	if (argc > 5 && !strcmp(argv[5], "-check"))
-	    check = true;
-	cv::Mat output = nakagami(L, input, check);
-	cv::imwrite(argv[4], output);
+	float L;
+	bool check;
+	bool radar;
+	int outputArgc;
+
+	cv::Mat input = parseArgs(argc, argv, check, radar, outputArgc, L);
+
+	cv::Mat output = nakagami((int)L, input, check);
+	if (radar)
+	    WriteImw(output, argv[outputArgc]);
+	else
+	    cv::imwrite(argv[outputArgc], output);
     }
 
     else
